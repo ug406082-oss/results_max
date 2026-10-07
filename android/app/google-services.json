@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "184582106500",
+    "project_id": "result-pro-ff8ac",
+    "storage_bucket": "result-pro-ff8ac.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:184582106500:android:98e6eec54109dd85b101d1",
+        "android_client_info": {
+          "package_name": "com.codebuddies.results_max"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-XgoXQLJay7JzW-BgdaBq6EfXEDZoiWU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
