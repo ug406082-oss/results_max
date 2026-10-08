@@ -19,8 +19,10 @@ jobs:
         channel: 'stable'
         cache: true
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
+    - name: Install Visual Studio Build Tools (C++ Workload)
+      run: |
+        winget install --id Microsoft.VisualStudio.2022.BuildTools --silent --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+      shell: pwsh
 
     - name: Enable Windows Desktop
       run: flutter config --enable-windows-desktop
