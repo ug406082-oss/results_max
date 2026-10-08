@@ -19,6 +19,9 @@ jobs:
         channel: 'stable'
         cache: true
 
+    - name: Enable Windows Desktop
+      run: flutter config --enable-windows-desktop
+
     - name: Install Dependencies
       run: flutter pub get
 
