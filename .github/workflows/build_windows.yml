@@ -19,6 +19,9 @@ jobs:
         channel: 'stable'
         cache: true
 
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
     - name: Enable Windows Desktop
       run: flutter config --enable-windows-desktop
 
@@ -26,7 +29,7 @@ jobs:
       run: flutter pub get
 
     - name: Build Windows Release
-      run: flutter build windows --release
+      run: flutter build windows --release -v
 
     - name: Upload Windows Release Artifact
       uses: actions/upload-artifact@v4
