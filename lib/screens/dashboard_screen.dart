@@ -35,7 +35,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<String> get _categoryOptions {
     int g = int.tryParse(selectedGrade) ?? 0;
     if (g == 9 || g == 10) return ['biology', 'computer'];
-    if (g == 11 || g == 12) return ['pre-medical', 'pre-engineering', 'ics'];
+    if (g == 11 || g == 12) return ['pre medical', 'pre engineering', 'ics'];
     return [];
   }
 
@@ -173,7 +173,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         List<RecordModel> classResults = snapshot.data?[1] ?? [];
 
         List<Map<String, String>> students = rawStudents.where((s) {
-          if (selectedCategory != null) return (s['category']?.toLowerCase() ?? '') == selectedCategory;
+          if (selectedCategory != null) {
+            String sc = (s['category']?.toLowerCase() ?? '').replaceAll('-', ' ').trim();
+            String sel = selectedCategory!.toLowerCase().replaceAll('-', ' ').trim();
+            if (sc == sel) return true;
+            if ((sc == 'bio' || sc == 'biology') && (sel == 'bio' || sel == 'biology')) return true;
+            if ((sc == 'pre medical') && (sel == 'pre medical')) return true;
+            if ((sc == 'pre engineering') && (sel == 'pre engineering')) return true;
+            return false;
+          }
           return true;
         }).toList();
 

@@ -153,34 +153,98 @@ class DataService {
     }
   }
 
+  Future<String> getSchoolFilterClause() async {
+    try {
+      final schoolInfo = await getCurrentUserSchoolInfo();
+      String schoolId = schoolInfo['school_id'] ?? '';
+      String schoolName = schoolInfo['school_name'] ?? '';
+
+      if (schoolId.isEmpty && schoolName.isEmpty) {
+        return ' && school_name ~ "syedanwala"';
+      } else if (schoolId.isNotEmpty) {
+        return ' && school_id = "$schoolId"';
+      } else if (schoolName.isNotEmpty) {
+        return ' && school_name ~ "$schoolName"';
+      }
+    } catch (_) {}
+    return ' && school_name ~ "syedanwala"';
+  }
+
+  Future<List<Map<String, dynamic>>> getSyedanwalaSchoolsOverview() async {
+    try {
+      final students = await _pb.collection('rm_students').getFullList(
+        filter: 'school_name ~ "syedanwala"',
+      );
+      final results = await _pb.collection('rm_student_result').getFullList(
+        filter: 'school_name ~ "syedanwala"',
+      );
+
+      Map<String, int> schoolStudentCount = {};
+      Map<String, List<double>> schoolMarks = {};
+
+      for (var s in students) {
+        String sName = s.getStringValue('school_name');
+        if (sName.isEmpty) sName = 'Syedanwala Campus';
+        schoolStudentCount[sName] = (schoolStudentCount[sName] ?? 0) + 1;
+      }
+
+      for (var r in results) {
+        String sName = r.getStringValue('school_name');
+        if (sName.isEmpty) sName = 'Syedanwala Campus';
+        double marks = r.getDoubleValue('marks');
+        double total = r.getDoubleValue('totalMarks');
+        if (total > 0) {
+          double pct = (marks / total) * 100;
+          schoolMarks.putIfAbsent(sName, () => []).add(pct);
+        }
+      }
+
+      List<Map<String, dynamic>> overview = [];
+      schoolStudentCount.forEach((schoolName, studentCount) {
+        List<double> pcts = schoolMarks[schoolName] ?? [];
+        double avgPct = pcts.isNotEmpty ? pcts.reduce((a, b) => a + b) / pcts.length : 0.0;
+        overview.add({
+          'school_name': schoolName,
+          'student_count': studentCount,
+          'avg_percentage': avgPct,
+        });
+      });
+
+      return overview;
+    } catch (e) {
+      return [];
+    }
+  }
+
   // --- Student Management ---
   Future<List<Map<String, String>>> getStudents(String grade, String section) async {
     String cacheKey = 'students_${grade}_$section';
     try {
-      final schoolInfo = await getCurrentUserSchoolInfo();
-      String schoolId = schoolInfo['school_id'] ?? '';
-      String schoolFilter = schoolId.isNotEmpty ? ' && school_id = "$schoolId"' : '';
+      String schoolClause = await getSchoolFilterClause();
 
       // If section is 'None', we search for records where section is 'None' OR empty
       String secFilter = section == 'None' ? '(section = "None" || section = "")' : 'section = "$section"';
       final records = await _pb.collection('rm_students').getFullList(
-        filter: 'grade = "$grade" && $secFilter$schoolFilter',
-        expand: 'Category,category', // Try both cases for expansion
+        filter: 'grade = "$grade" && $secFilter$schoolClause',
+        expand: 'Category,category,matric_subjects,intermediate_program',
       );
       
       List<Map<String, String>> resultList = records.map((doc) {
-        // Try to get category name from expanded relation (check both cases)
         String catName = doc.getStringValue('Category');
         if (catName.isEmpty) catName = doc.getStringValue('category');
+        if (catName.isEmpty) catName = doc.getStringValue('matric_subjects');
+        if (catName.isEmpty) catName = doc.getStringValue('intermediate_program');
 
-        final expanded = doc.expand['Category']?.firstOrNull ?? doc.expand['category']?.firstOrNull;
+        final expanded = doc.expand['Category']?.firstOrNull ??
+                         doc.expand['category']?.firstOrNull ??
+                         doc.expand['matric_subjects']?.firstOrNull ??
+                         doc.expand['intermediate_program']?.firstOrNull;
         if (expanded != null) {
-          // Try common name fields
-          catName = expanded.getStringValue('name').isNotEmpty 
+          catName = expanded.getStringValue('name').isNotEmpty
               ? expanded.getStringValue('name') 
               : expanded.getStringValue('title').isNotEmpty 
                   ? expanded.getStringValue('title')
-                  : expanded.getStringValue('Category'); // Maybe the field in category collection is also named Category
+                  : expanded.getStringValue('Category');
         }
 
         String batchVal = '2025';
@@ -226,30 +290,41 @@ class DataService {
     final schoolId = schoolInfo['school_id'] ?? '';
     final schoolName = schoolInfo['school_name'] ?? '';
 
+    Map<String, dynamic> body = {
+      'name': name,
+      'FatherName': fatherName,
+      'RoleNo': roleNo,
+      'grade': grade,
+      'section': section,
+      'Category': category ?? '',
+      'category': category ?? '',
+      'batch': batch ?? '2025',
+      'school_id': schoolId,
+      'school_name': schoolName,
+    };
+    int g = int.tryParse(grade) ?? 0;
+    if (g == 9 || g == 10) {
+      body['matric_subjects'] = category ?? '';
+    } else if (g == 11 || g == 12) {
+      body['intermediate_program'] = category ?? '';
+    }
+
     try {
-      await _pb.collection('rm_students').create(body: {
-        'name': name,
-        'FatherName': fatherName,
-        'RoleNo': roleNo,
-        'grade': grade,
-        'section': section,
-        'Category': category ?? '',
-        'batch': batch ?? '2025',
-        'school_id': schoolId,
-        'school_name': schoolName,
-      });
+      await _pb.collection('rm_students').create(body: body);
     } catch (e) {
-      // Fallback if 'batch' field doesn't exist in PocketBase schema yet
-      await _pb.collection('rm_students').create(body: {
-        'name': name,
-        'FatherName': fatherName,
-        'RoleNo': roleNo,
-        'grade': grade,
-        'section': section,
-        'Category': category ?? '',
-        'school_id': schoolId,
-        'school_name': schoolName,
-      });
+      try {
+        await _pb.collection('rm_students').create(body: {
+          'name': name,
+          'FatherName': fatherName,
+          'RoleNo': roleNo,
+          'grade': grade,
+          'section': section,
+          'Category': category ?? '',
+          'category': category ?? '',
+          'school_id': schoolId,
+          'school_name': schoolName,
+        });
+      } catch (_) {}
     }
   }
 
@@ -262,27 +337,38 @@ class DataService {
     final schoolInfo = await getCurrentUserSchoolInfo();
     final schoolId = schoolInfo['school_id'] ?? '';
     final schoolName = schoolInfo['school_name'] ?? '';
+    int g = int.tryParse(grade) ?? 0;
 
     for (var s in students) {
+      String cat = s['category'] ?? '';
+      Map<String, dynamic> body = {
+        'name': s['name'] ?? '',
+        'FatherName': s['father_name'] ?? '',
+        'RoleNo': s['role_no'] ?? '',
+        'Category': cat,
+        'category': cat,
+        'grade': grade,
+        'section': section,
+        'batch': batch ?? s['batch'] ?? '2025',
+        'school_id': schoolId,
+        'school_name': schoolName,
+      };
+      if (g == 9 || g == 10) {
+        body['matric_subjects'] = cat;
+      } else if (g == 11 || g == 12) {
+        body['intermediate_program'] = cat;
+      }
+
       try {
-        await _pb.collection('rm_students').create(body: {
-          'name': s['name'] ?? '',
-          'FatherName': s['father_name'] ?? '',
-          'RoleNo': s['role_no'] ?? '',
-          'Category': s['category'] ?? '',
-          'grade': grade,
-          'section': section,
-          'batch': batch ?? s['batch'] ?? '2025',
-          'school_id': schoolId,
-          'school_name': schoolName,
-        });
+        await _pb.collection('rm_students').create(body: body);
       } catch (e) {
         try {
           await _pb.collection('rm_students').create(body: {
             'name': s['name'] ?? '',
             'FatherName': s['father_name'] ?? '',
             'RoleNo': s['role_no'] ?? '',
-            'Category': s['category'] ?? '',
+            'Category': cat,
+            'category': cat,
             'grade': grade,
             'section': section,
             'school_id': schoolId,
@@ -351,34 +437,104 @@ class DataService {
       String schoolFilter = schoolId.isNotEmpty ? ' && school_id = "$schoolId"' : '';
 
       String secFilter = section == 'None' ? '(section = "None" || section = "")' : 'section = "$section"';
-      
+      int g = int.tryParse(grade) ?? 0;
+
       // 1. Update Students in rm_students
       final students = await _pb.collection('rm_students').getFullList(
         filter: 'grade = "$grade" && $secFilter$schoolFilter',
       );
       int studentCount = 0;
+      Set<String> studentIds = {};
+      Set<String> studentNames = {};
+
       for (var s in students) {
+        studentIds.add(s.id);
+        String name = s.getStringValue('name');
+        if (name.isNotEmpty) studentNames.add(name);
+
         try {
-          await _pb.collection('rm_students').update(s.id, body: {
+          Map<String, dynamic> updateBody = {
             'Category': category,
             'category': category,
-          });
+          };
+          if (g == 9 || g == 10) {
+            updateBody['matric_subjects'] = category;
+          } else if (g == 11 || g == 12) {
+            updateBody['intermediate_program'] = category;
+          }
+          await _pb.collection('rm_students').update(s.id, body: updateBody);
           studentCount++;
         } catch (_) {}
       }
 
-      // 2. Update Results in rm_student_result
-      final results = await _pb.collection('rm_student_result').getFullList(
+      // 2. Update ALL Results in rm_student_result for these students (across all terms/tests/subjects)
+      final allResults = await _pb.collection('rm_student_result').getFullList(
         filter: 'grade = "$grade" && $secFilter$schoolFilter',
       );
       int resultCount = 0;
-      for (var r in results) {
+      for (var r in allResults) {
+        String resStudentId = r.getStringValue('student_id');
+        String resStudentName = r.getStringValue('studentName');
+
+        bool match = studentIds.contains(resStudentId) || studentNames.contains(resStudentName);
+        if (match) {
+          try {
+            Map<String, dynamic> updateBody = {
+              'Category': category,
+              'category': category,
+            };
+            if (g == 9 || g == 10) {
+              updateBody['matric_subjects'] = category;
+            } else if (g == 11 || g == 12) {
+              updateBody['intermediate_program'] = category;
+            }
+            await _pb.collection('rm_student_result').update(r.id, body: updateBody);
+            resultCount++;
+          } catch (_) {}
+        }
+      }
+
+      return 'Updated category "$category" for $studentCount students and $resultCount result records!';
+    } catch (e) {
+      return 'Error updating category: $e';
+    }
+  }
+
+  Future<String> assignCategoryToStudents({
+    required List<String> studentPbIds,
+    required String category,
+  }) async {
+    try {
+      int studentCount = 0;
+      int resultCount = 0;
+
+      for (String pbId in studentPbIds) {
         try {
-          await _pb.collection('rm_student_result').update(r.id, body: {
+          final studentDoc = await _pb.collection('rm_students').getOne(pbId);
+          String grade = studentDoc.getStringValue('grade');
+          String studentName = studentDoc.getStringValue('name');
+          int g = int.tryParse(grade) ?? 0;
+
+          Map<String, dynamic> updateBody = {
             'Category': category,
             'category': category,
-          });
-          resultCount++;
+          };
+          if (g == 9 || g == 10) {
+            updateBody['matric_subjects'] = category;
+          } else if (g == 11 || g == 12) {
+            updateBody['intermediate_program'] = category;
+          }
+
+          await _pb.collection('rm_students').update(pbId, body: updateBody);
+          studentCount++;
+
+          final results = await _pb.collection('rm_student_result').getFullList(
+            filter: 'student_id = "$pbId" || studentName = "$studentName"',
+          );
+          for (var r in results) {
+            await _pb.collection('rm_student_result').update(r.id, body: updateBody);
+            resultCount++;
+          }
         } catch (_) {}
       }
 

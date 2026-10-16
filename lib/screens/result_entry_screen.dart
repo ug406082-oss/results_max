@@ -55,16 +55,17 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
     if (g >= 6 && g <= 8) return ['Science', 'Geography', 'History', 'Urdu', 'English', 'Islamiat', 'Math', 'Al Quran', 'Computer'];
     if (g == 9 || g == 10) {
       List<String> common = ['Chemistry', 'Physics', 'Math', 'Urdu', 'English', 'Pak Studies', 'Islamiat'];
-      if (selectedCategory == 'bio' || selectedCategory == 'biology') return [...common, 'Biology'];
-      if (selectedCategory == 'computer') return [...common, 'Computer Science', 'Computer'];
-      return common;
+      String cat = (selectedCategory ?? '').toLowerCase().trim().replaceAll('-', ' ');
+      if (cat == 'computer') return [...common, 'Computer Science'];
+      return [...common, 'Biology'];
     }
     if (g == 11 || g == 12) {
       String rel = (g == 11) ? 'Pak Studies' : 'Islamiat';
       List<String> common = ['English', 'Urdu', rel, 'Physics'];
-      if (selectedCategory == 'pre-medical') return [...common, 'Biology', 'Chemistry'];
-      if (selectedCategory == 'pre-engineering') return [...common, 'Math', 'Chemistry'];
-      if (selectedCategory == 'ics') return [...common, 'Math', 'Computer Science'];
+      String cat = (selectedCategory ?? '').toLowerCase().trim().replaceAll('-', ' ');
+      if (cat == 'pre medical' || cat == 'pre-medical') return [...common, 'Biology', 'Chemistry'];
+      if (cat == 'pre engineering' || cat == 'pre-engineering') return [...common, 'Math', 'Chemistry'];
+      if (cat == 'ics') return [...common, 'Math', 'Computer Science'];
       return common;
     }
     return [];
@@ -74,7 +75,7 @@ class _ResultEntryScreenState extends State<ResultEntryScreen> {
     if (selectedGrade == null) return [];
     int g = int.tryParse(selectedGrade!) ?? 0;
     if (g == 9 || g == 10) return ['biology', 'computer'];
-    if (g == 11 || g == 12) return ['pre-medical', 'pre-engineering', 'ics'];
+    if (g == 11 || g == 12) return ['pre medical', 'pre engineering', 'ics'];
     return [];
   }
 

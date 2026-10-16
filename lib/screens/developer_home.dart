@@ -14,8 +14,9 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
   final DataService _dataService = DataService();
   final AuthService _authService = AuthService();
 
-  final List<String> grades = ['6', '7', '8', '9', '10', '11'];
+  final List<String> grades = ['6', '7', '8', '9', '10', '11', '12'];
   final List<String> sections = ['A', 'B', 'None'];
+  bool _isOperationLoading = false;
 
   static const bgColor = Color(0xFFF5F1E8);
   static const itemColor = Color(0xFF2B262C);
@@ -38,9 +39,9 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Class Promotion Management', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w900, color: itemColor)),
+            Text('Class Management & Promotion', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w900, color: itemColor)),
             const SizedBox(height: 8),
-            Text('Manage student standards and promotions across all grades.', style: GoogleFonts.inter(color: itemColor.withValues(alpha: 0.6))),
+            Text('Manage student categories, standards, and promotions across all grades.', style: GoogleFonts.inter(color: itemColor.withValues(alpha: 0.6))),
             const SizedBox(height: 24),
             Expanded(
               child: ListView.builder(
@@ -69,8 +70,9 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
   Widget _buildClassCard(String grade, String section) {
     String displaySection = section == 'None' ? 'Entire Class' : 'Section $section';
     String subtitleText = section == 'None' 
-        ? 'Manage promotion for the whole of Grade $grade' 
-        : 'Manage promotion for Grade $grade $section';
+        ? 'Manage records for the whole of Grade $grade'
+        : 'Manage records for Grade $grade $section';
+    int g = int.tryParse(grade) ?? 0;
 
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: _dataService.getStudents(grade, section),
@@ -93,18 +95,133 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
             ),
             title: Text(displaySection, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('$count Students registered - $subtitleText'),
-            trailing: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: itemColor,
-                foregroundColor: bgColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () => _showPromotionDialog(grade, section),
-              child: const Text('Promote'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (g >= 9)
+                  TextButton.icon(
+                    style: TextButton.styleFrom(foregroundColor: itemColor),
+                    onPressed: () => _showCategorySelectionDialog(grade, section),
+                    icon: const Icon(Icons.category_rounded, size: 16),
+                    label: const Text('Category'),
+                  ),
+                if (g >= 9) const SizedBox(width: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: itemColor,
+                    foregroundColor: bgColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => _showPromotionDialog(grade, section),
+                  child: const Text('Promote'),
+                ),
+              ],
             ),
           ),
         );
       }
+    );
+  }
+
+  void _showCategorySelectionDialog(String grade, String section) async {
+    List<Map<String, dynamic>> students = await _dataService.getStudents(grade, section);
+    if (students.isEmpty) return;
+
+    Set<String> selectedStudents = students.map((e) => e['pb_id'] as String).toSet();
+    int g = int.tryParse(grade) ?? 0;
+    List<String> options = [];
+    if (g == 9 || g == 10) {
+      options = ['biology', 'computer'];
+    } else if (g == 11 || g == 12) {
+      options = ['pre medical', 'pre engineering', 'ics'];
+    } else {
+      options = ['biology', 'computer', 'pre medical', 'pre engineering', 'ics'];
+    }
+    String selectedCategory = options.first;
+    String displayClass = section == 'None' ? 'Grade $grade' : 'Grade $grade $section';
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: bgColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Container(
+          padding: const EdgeInsets.all(24),
+          height: MediaQuery.of(context).size.height * 0.85,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Assign Category - $displayClass', style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w900, color: itemColor)),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: selectedCategory,
+                decoration: const InputDecoration(labelText: 'Select Category / Program', border: OutlineInputBorder()),
+                items: options.map((e) => DropdownMenuItem(value: e, child: Text(e.toUpperCase()))).toList(),
+                onChanged: (v) => setDialogState(() => selectedCategory = v ?? options.first),
+              ),
+              const SizedBox(height: 20),
+              Text('Select students to update:', style: TextStyle(fontWeight: FontWeight.w600, color: itemColor.withValues(alpha: 0.6))),
+              const SizedBox(height: 10),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: students.length,
+                  itemBuilder: (context, index) {
+                    final s = students[index];
+                    final id = s['pb_id'] as String;
+                    final isSelected = selectedStudents.contains(id);
+                    final cat = s['category'] ?? 'None';
+                    return CheckboxListTile(
+                      value: isSelected,
+                      title: Text(s['name'] ?? ''),
+                      subtitle: Text('S/O: ${s['father_name'] ?? 'N/A'} | Current: $cat'),
+                      onChanged: (v) {
+                        setDialogState(() {
+                          if (v == true) {
+                            selectedStudents.add(id);
+                          } else {
+                            selectedStudents.remove(id);
+                          }
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: itemColor, foregroundColor: bgColor),
+                  onPressed: selectedStudents.isEmpty ? null : () async {
+                    Navigator.pop(context);
+                    setState(() => _isOperationLoading = true);
+                    String msg = await _dataService.assignCategoryToStudents(
+                      studentPbIds: selectedStudents.toList(),
+                      category: selectedCategory,
+                    );
+                    setState(() => _isOperationLoading = false);
+                    if (mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Category Assignment Result'),
+                          content: Text(msg),
+                          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+                        ),
+                      );
+                    }
+                  },
+                  child: Text('APPLY CATEGORY TO (${selectedStudents.length}) STUDENTS'),
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
     );
   }
 

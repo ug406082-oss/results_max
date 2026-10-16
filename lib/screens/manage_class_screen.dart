@@ -238,9 +238,9 @@ class _ManageClassScreenState extends State<ManageClassScreen> {
     String helperText = 'Format: RoleNo, Name, FatherName';
     if (g >= 9) {
       if (g <= 10) {
-        helperText = 'Format: RoleNo, Name, FatherName, bio/computer';
+        helperText = 'Format: RoleNo, Name, FatherName, biology/computer';
       } else {
-        helperText = 'Format: RoleNo, Name, FatherName, pre-medical/pre-engineering/ics';
+        helperText = 'Format: RoleNo, Name, FatherName, pre medical/pre engineering/ics';
       }
     }
 
@@ -262,7 +262,7 @@ class _ManageClassScreenState extends State<ManageClassScreen> {
                 controller: batchController, maxLines: 8,
                 decoration: InputDecoration(
                   hintText: g >= 9 
-                    ? (g <= 10 ? '101, John Doe, Mr. Doe, bio' : '101, John Doe, Mr. Doe, pre-medical')
+                    ? (g <= 10 ? '101, John Doe, Mr. Doe, biology' : '101, John Doe, Mr. Doe, pre medical')
                     : '101, John Doe, Mr. Doe',
                   helperText: helperText,
                   helperStyle: const TextStyle(fontSize: 10),
@@ -325,8 +325,8 @@ class _ManageClassScreenState extends State<ManageClassScreen> {
     int g = int.tryParse(selectedGrade ?? '') ?? 0;
 
     List<String> options = [];
-    if (g == 9 || g == 10) options = ['bio', 'computer'];
-    if (g == 11 || g == 12) options = ['pre-medical', 'pre-engineering', 'ics'];
+    if (g == 9 || g == 10) options = ['biology', 'computer'];
+    if (g == 11 || g == 12) options = ['pre medical', 'pre engineering', 'ics'];
 
     showDialog(
       context: context,
@@ -429,7 +429,7 @@ class _ManageClassScreenState extends State<ManageClassScreen> {
     if (g == 9 || g == 10) {
       options = ['biology', 'computer'];
     } else if (g == 11 || g == 12) {
-      options = ['pre-medical', 'pre-engineering', 'ics'];
+      options = ['pre medical', 'pre engineering', 'ics'];
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Category labeling tool is for Grades 9, 10, 11 (1st Year) and 12 (2nd Year)')),

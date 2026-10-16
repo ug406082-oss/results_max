@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'management_campus_list_screen.dart';
 import 'dashboard_screen.dart';
 import 'settings_screen.dart';
 
@@ -13,6 +14,7 @@ class _ManagementHomeScreenState extends State<ManagementHomeScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
+    const ManagementCampusListScreen(),
     const DashboardScreen(),
     const SettingsScreen(role: 'management'),
   ];
@@ -26,9 +28,14 @@ class _ManagementHomeScreenState extends State<ManagementHomeScreen> {
         onDestinationSelected: (index) => setState(() => _selectedIndex = index),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+            icon: Icon(Icons.school_outlined),
+            selectedIcon: Icon(Icons.school),
+            label: 'Campuses',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.analytics_outlined),
+            selectedIcon: Icon(Icons.analytics),
+            label: 'Advanced',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
