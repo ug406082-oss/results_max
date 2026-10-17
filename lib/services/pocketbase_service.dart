@@ -5,5 +5,5 @@ class PBService {
   factory PBService() => _instance;
   PBService._internal();
 
-  final PocketBase client = PocketBase('https://8f257387100532af-223-123-77-98.serveousercontent.com');
+  final PocketBase client = PocketBase('https://7cb4f6ee6a43cf44-223-123-77-98.serveousercontent.com');
 }
