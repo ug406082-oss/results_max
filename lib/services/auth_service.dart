@@ -24,7 +24,7 @@ class AuthService {
   // Sign in with secure + SharedPreferences dual fallback
   Future<void> signIn(String email, String password) async {
     try {
-      final authData = await _pb.collection('rm_profiles').authWithPassword(email, password).timeout(const Duration(seconds: 4));
+      final authData = await _pb.collection('rm_profiles').authWithPassword(email, password).timeout(const Duration(seconds: 15));
       
       // 1. Try writing to secure storage
       try {
@@ -112,6 +112,59 @@ class AuthService {
   // Sign out
   Future<void> signOut() async {
     _pb.authStore.clear();
+  }
+
+  // Silent auto-login for "login only once" feature
+  Future<bool> trySilentAutoLogin() async {
+    if (_pb.authStore.isValid) return true;
+    try {
+      String? savedEmail;
+      String? token;
+      String? uid;
+      String? role;
+      String? name;
+      String? schoolId;
+      String? schoolName;
+
+      try {
+        savedEmail = await _secureStorage.read(key: 'offline_email');
+        token = await _secureStorage.read(key: 'offline_token');
+        uid = await _secureStorage.read(key: 'offline_uid');
+        role = await _secureStorage.read(key: 'offline_role');
+        name = await _secureStorage.read(key: 'offline_name');
+        schoolId = await _secureStorage.read(key: 'offline_school_id');
+        schoolName = await _secureStorage.read(key: 'offline_school_name');
+      } catch (_) {}
+
+      if (savedEmail == null || token == null) {
+        final prefs = await SharedPreferences.getInstance();
+        savedEmail = prefs.getString('offline_email');
+        token = prefs.getString('offline_token');
+        uid = prefs.getString('offline_uid');
+        role = prefs.getString('offline_role');
+        name = prefs.getString('offline_name');
+        schoolId = prefs.getString('offline_school_id');
+        schoolName = prefs.getString('offline_school_name');
+      }
+
+      if (savedEmail != null && token != null) {
+        _pb.authStore.save(
+          token,
+          RecordModel({
+            'id': uid ?? 'offline_uid',
+            'collectionId': 'rm_profiles',
+            'collectionName': 'rm_profiles',
+            'email': savedEmail,
+            'name': name ?? 'Management User',
+            'role': role ?? 'management',
+            'school_id': schoolId ?? '',
+            'school_name': schoolName ?? '',
+          }),
+        );
+        return true;
+      }
+    } catch (_) {}
+    return false;
   }
 
   // Get User Role from PocketBase record or secure cache
